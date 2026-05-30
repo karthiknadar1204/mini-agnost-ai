@@ -39,3 +39,4 @@ yarn-error.log*
 
 .specstory/**
 POSTMAN.md
+READ-ENDPOINTS.md

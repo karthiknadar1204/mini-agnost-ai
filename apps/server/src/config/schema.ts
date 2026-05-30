@@ -85,13 +85,12 @@ export const spans = pgTable(
 
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
-  // Indexes — uncomment when we add filtering/scale later.
-  // (t) => [
-  //   uniqueIndex('spans_span_unique').on(t.traceId, t.spanId),
-  //   index('spans_trace_idx').on(t.traceId),
-  //   index('spans_workflow_start_idx').on(t.workflowName, t.startTime),
-  //   index('spans_session_idx').on(t.sessionId),
-  // ],
+  (t) => [
+    uniqueIndex('spans_span_unique').on(t.traceId, t.spanId),
+    index('spans_trace_idx').on(t.traceId),
+    index('spans_workflow_start_idx').on(t.workflowName, t.startTime),
+    index('spans_session_idx').on(t.sessionId),
+  ],
 );
 
 // ─── Traces (materialized summary, one row per trace) ───────────────────────
@@ -121,12 +120,11 @@ export const traces = pgTable(
 
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
-  // Indexes — uncomment when we add filtering/scale later.
-  // (t) => [
-  //   uniqueIndex('traces_trace_unique').on(t.traceId),
-  //   index('traces_workflow_start_idx').on(t.workflowName, t.startTime),
-  //   index('traces_session_idx').on(t.sessionId),
-  // ],
+  (t) => [
+    uniqueIndex('traces_trace_unique').on(t.traceId),
+    index('traces_workflow_start_idx').on(t.workflowName, t.startTime),
+    index('traces_session_idx').on(t.sessionId),
+  ],
 );
 
 // ─── Relations ──────────────────────────────────────────────────────────────

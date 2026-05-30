@@ -19,8 +19,30 @@ export async function ingestTraces(c: Context) {
   const spanRows = parseOtlp(body, projectId);
   if (spanRows.length === 0) return c.json({}, 200);
 
-  await db.insert(spans).values(spanRows);
-  await db.insert(traces).values(summarizeTraces(spanRows, projectId));
+  await db.insert(spans).values(spanRows).onConflictDoNothing();
+
+  for (const t of summarizeTraces(spanRows, projectId)) {
+    await db
+      .insert(traces)
+      .values(t)
+      .onConflictDoUpdate({
+        target: traces.traceId,
+        set: {
+          rootSpanName: t.rootSpanName,
+          workflowName: t.workflowName,
+          sessionId: t.sessionId,
+          userId: t.userId,
+          tags: t.tags,
+          startTime: t.startTime,
+          endTime: t.endTime,
+          durationMs: t.durationMs,
+          spanCount: t.spanCount,
+          totalTokens: t.totalTokens,
+          totalCostUsd: t.totalCostUsd,
+          status: t.status,
+        },
+      });
+  }
 
   return c.json({}, 200);
 }

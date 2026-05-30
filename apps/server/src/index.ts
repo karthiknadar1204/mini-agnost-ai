@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { cors } from 'hono/cors';
 import { ingestRoutes } from './routes/ingest.route';
 import { authRoutes } from './routes/auth.route';
 import { projectRoutes } from './routes/project.route';
@@ -7,8 +8,19 @@ import { apiKeyRoutes } from './routes/apikey.route';
 import { statsRoutes } from './routes/stats.route';
 import { errorRoutes } from './routes/errors.route';
 import { sessionRoutes } from './routes/sessions.route';
+import { logger } from 'hono/logger'
 
 const app = new Hono();
+app.use(logger());
+
+app.use(
+  '*',
+  cors({
+    origin: ['http://localhost:3000'],
+    allowMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization', 'x-project-id'],
+  }),
+);
 
 app.get('/', (c) => c.text('Hello Hono!'));
 

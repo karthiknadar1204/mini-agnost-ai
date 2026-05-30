@@ -1,11 +1,16 @@
 import type { Context } from 'hono';
+import { db } from '../config/db';
+import { spans, traces } from '../config/schema';
+import { parseOtlp, summarizeTraces } from '../lib/otlp';
 
-// Temporary receiver: dump the OTLP payload so we can design the span schema.
 export async function ingestTraces(c: Context) {
   const body = await c.req.json();
 
-  console.log(JSON.stringify(body, null, 2));
-  await Bun.write('scripts/last-payload.json', JSON.stringify(body, null, 2));
+  const spanRows = parseOtlp(body);
+  if (spanRows.length === 0) return c.json({}, 200);
+
+  await db.insert(spans).values(spanRows);
+  await db.insert(traces).values(summarizeTraces(spanRows));
 
   return c.json({}, 200);
 }

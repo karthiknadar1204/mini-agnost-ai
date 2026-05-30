@@ -8,6 +8,7 @@ import { apiKeyRoutes } from './routes/apikey.route';
 import { statsRoutes } from './routes/stats.route';
 import { errorRoutes } from './routes/errors.route';
 import { sessionRoutes } from './routes/sessions.route';
+import { detectionRoutes } from './routes/detections.route';
 import { logger } from 'hono/logger'
 
 const app = new Hono();
@@ -32,6 +33,7 @@ app.route('/', apiKeyRoutes);
 app.route('/', statsRoutes);
 app.route('/', errorRoutes);
 app.route('/', sessionRoutes);
+app.route('/', detectionRoutes);
 
 export default {
   port: 3004,

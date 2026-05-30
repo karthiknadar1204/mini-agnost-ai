@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '../config/db';
 import { apiKeys, spans, traces } from '../config/schema';
 import { parseOtlp, summarizeTraces } from '../lib/otlp';
+import { enqueueTrace } from '../queue/detections.queue';
 
 // Resolve the project from the API key in the Authorization header.
 // The key maps to exactly one project — no x-project-id header needed.
@@ -34,7 +35,8 @@ export async function ingestTraces(c: Context) {
 
   await db.insert(spans).values(spanRows).onConflictDoNothing();
 
-  for (const t of summarizeTraces(spanRows, projectId)) {
+  const summaries = summarizeTraces(spanRows, projectId);
+  for (const t of summaries) {
     await db
       .insert(traces)
       .values(t)
@@ -55,6 +57,16 @@ export async function ingestTraces(c: Context) {
           status: t.status,
         },
       });
+  }
+
+  // Enqueue detection analysis. Best-effort: if Redis is down, ingestion still
+  // succeeds — detections just won't run for these traces.
+  try {
+    for (const t of summaries) {
+      await enqueueTrace(projectId, t.traceId!);
+    }
+  } catch (err) {
+    console.error('[ingest] failed to enqueue detections:', (err as Error).message);
   }
 
   return c.json({}, 200);

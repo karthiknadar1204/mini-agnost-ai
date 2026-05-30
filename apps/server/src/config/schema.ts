@@ -127,6 +127,31 @@ export const traces = pgTable(
   ],
 );
 
+// ─── Detections (one row per rule match on a trace) ─────────────────────────
+
+export const detections = pgTable(
+  'detections',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }),
+
+    traceId: text('trace_id').notNull(),
+    spanId: text('span_id'), // null = trace-level detection
+
+    rule: text('rule').notNull(), // rule id, e.g. high_latency | tool_error
+    severity: text('severity').notNull(), // low | medium | high
+    title: text('title').notNull(),
+    details: jsonb('details').$type<Record<string, unknown>>().notNull().default({}),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index('detections_project_created_idx').on(t.projectId, t.createdAt),
+    index('detections_trace_idx').on(t.traceId),
+    index('detections_severity_idx').on(t.severity),
+  ],
+);
+
 // ─── Relations ──────────────────────────────────────────────────────────────
 
 export const projectsRelations = relations(projects, ({ many }) => ({
@@ -145,4 +170,8 @@ export const spansRelations = relations(spans, ({ one }) => ({
 
 export const tracesRelations = relations(traces, ({ one }) => ({
   project: one(projects, { fields: [traces.projectId], references: [projects.id] }),
+}));
+
+export const detectionsRelations = relations(detections, ({ one }) => ({
+  project: one(projects, { fields: [detections.projectId], references: [projects.id] }),
 }));

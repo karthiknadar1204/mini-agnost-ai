@@ -3,6 +3,7 @@ import { ingestRoutes } from './routes/ingest.route';
 import { authRoutes } from './routes/auth.route';
 import { projectRoutes } from './routes/project.route';
 import { traceRoutes } from './routes/traces.route';
+import { apiKeyRoutes } from './routes/apikey.route';
 
 const app = new Hono();
 
@@ -12,6 +13,7 @@ app.route('/', ingestRoutes);
 app.route('/', authRoutes);
 app.route('/', projectRoutes);
 app.route('/', traceRoutes);
+app.route('/', apiKeyRoutes);
 
 export default {
   port: 3004,

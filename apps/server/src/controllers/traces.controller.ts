@@ -5,7 +5,7 @@ import { spans, traces } from '../config/schema';
 
 type SpanNode = typeof spans.$inferSelect & { children: SpanNode[] };
 
-// Nest flat span rows into a tree by parentSpanId.
+
 function buildTree(rows: (typeof spans.$inferSelect)[]): SpanNode[] {
   const byId = new Map<string, SpanNode>();
   for (const s of rows) {
@@ -23,7 +23,7 @@ function buildTree(rows: (typeof spans.$inferSelect)[]): SpanNode[] {
   return roots;
 }
 
-// GET /v1/traces — list a project's traces, newest first.
+
 export async function listTraces(c: Context) {
   const projectId = c.req.header('x-project-id');
   if (!projectId) {
@@ -40,7 +40,7 @@ export async function listTraces(c: Context) {
   return c.json({ traces: rows });
 }
 
-// GET /v1/traces/:traceId — one trace with its span tree.
+
 export async function getTrace(c: Context) {
   const projectId = c.req.header('x-project-id');
   if (!projectId) {
@@ -48,6 +48,9 @@ export async function getTrace(c: Context) {
   }
 
   const traceId = c.req.param('traceId');
+  if (!traceId) {
+    return c.json({ error: 'Trace ID is required' }, 400);
+  }
 
   const [trace] = await db
     .select()

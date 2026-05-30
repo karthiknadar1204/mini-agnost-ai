@@ -1,18 +1,31 @@
 import type { Context } from 'hono';
 import { eq } from 'drizzle-orm';
 import { db } from '../config/db';
-import { projects, spans, traces } from '../config/schema';
+import { apiKeys, spans, traces } from '../config/schema';
 import { parseOtlp, summarizeTraces } from '../lib/otlp';
 
-export async function ingestTraces(c: Context) {
-  const projectId = c.req.header('x-project-id');
-  if (!projectId) {
-    return c.json({ error: 'x-project-id header is required' }, 400);
-  }
+// Resolve the project from the API key in the Authorization header.
+// The key maps to exactly one project — no x-project-id header needed.
+async function resolveProjectId(c: Context): Promise<string | null> {
+  const auth = c.req.header('Authorization');
+  if (!auth?.startsWith('Bearer ')) return null;
 
-  const [project] = await db.select({ id: projects.id }).from(projects).where(eq(projects.id, projectId)).limit(1);
-  if (!project) {
-    return c.json({ error: 'Project not found' }, 404);
+  const token = auth.slice(7);
+  const keyHash = new Bun.CryptoHasher('sha256').update(token).digest('hex');
+
+  const [row] = await db
+    .select({ projectId: apiKeys.projectId })
+    .from(apiKeys)
+    .where(eq(apiKeys.keyHash, keyHash))
+    .limit(1);
+
+  return row?.projectId ?? null;
+}
+
+export async function ingestTraces(c: Context) {
+  const projectId = await resolveProjectId(c);
+  if (!projectId) {
+    return c.json({ error: 'Invalid API key' }, 401);
   }
 
   const body = await c.req.json();

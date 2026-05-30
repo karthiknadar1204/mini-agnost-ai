@@ -9,8 +9,7 @@ import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
 const exporter = new OTLPTraceExporter({
   url: 'http://localhost:3004/v1/traces',
   headers: {
-    Authorization: `Bearer ${process.env.TOKEN}`,
-    'x-project-id': process.env.PROJECT_ID ?? '',
+    Authorization: `Bearer ${process.env.API_KEY}`,
   },
 });
 

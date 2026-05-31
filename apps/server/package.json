@@ -1,15 +1,21 @@
 {
   "name": "server",
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
     "dev": "bun run --hot src/index.ts",
-    "worker": "bun run --hot src/worker.ts"
+    "worker": "bun run --hot src/worker.ts",
+    "start": "bun src/index.ts",
+    "start:worker": "bun src/worker.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
     "bullmq": "^5.77.6",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
-    "hono": "^4.12.23"
+    "hono": "^4.12.23",
+    "ioredis": "^5.11.0"
   },
   "devDependencies": {
     "@arizeai/openinference-instrumentation-openai": "^4.1.3",

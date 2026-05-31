@@ -22,12 +22,20 @@ const corsOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:3000')
   .map(normalize)
   .filter(Boolean);
 
-console.log('[cors] allowed origins:', corsOrigins);
+console.log('[cors] allowed origins:', corsOrigins, '(+ *.up.railway.app)');
+
+// Railway-hosted dashboards are allowed automatically; CORS_ORIGINS adds any
+// custom domains on top. (Auth is bearer-token, not cookies, so this is safe.)
+const isRailway = (o: string) => /^https:\/\/[a-z0-9-]+\.up\.railway\.app$/i.test(o);
 
 app.use(
   '*',
   cors({
-    origin: (origin) => (origin && corsOrigins.includes(normalize(origin)) ? origin : null),
+    origin: (origin) => {
+      if (!origin) return origin;
+      const o = normalize(origin);
+      return corsOrigins.includes(o) || isRailway(o) ? origin : null;
+    },
     allowMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization', 'x-project-id'],
   }),

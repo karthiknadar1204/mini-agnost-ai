@@ -11,6 +11,7 @@ import {
   Users,
   ShieldAlert,
   KeyRound,
+  BookOpen,
   PanelLeft,
   LogOut,
 } from 'lucide-react';
@@ -59,7 +60,11 @@ export function AppSidebar() {
       )}
     >
       <div className={cn('flex h-16 items-center border-b px-3', collapsed ? 'justify-center' : 'justify-between')}>
-        {!collapsed && <span className="font-mono text-base font-medium tracking-tight">logsneat</span>}
+        {!collapsed && (
+          <Link href="/" className="font-mono text-base font-medium tracking-tight transition-opacity hover:opacity-70">
+            logsneat
+          </Link>
+        )}
         <Button variant="ghost" size="icon" aria-label="Toggle sidebar" onClick={toggle}>
           <PanelLeft className="size-4" />
         </Button>
@@ -94,7 +99,21 @@ export function AppSidebar() {
         })}
       </nav>
 
-      <div className="border-t p-3">
+      <div className="space-y-2 border-t p-3">
+        <Link
+          href="/docs"
+          target="_blank"
+          rel="noopener noreferrer"
+          title={collapsed ? 'Docs' : undefined}
+          className={cn(
+            'flex items-center gap-3 rounded-md py-2 text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground',
+            collapsed ? 'justify-center px-0' : 'px-3',
+          )}
+        >
+          <BookOpen className="size-4 shrink-0" />
+          {!collapsed && 'Docs'}
+        </Link>
+
         {collapsed ? (
           <div className="flex flex-col items-center gap-1">
             <ThemeToggle />

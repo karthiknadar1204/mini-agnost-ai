@@ -24,7 +24,12 @@ export default function Home() {
           <span className="font-mono text-base font-medium tracking-tight">logsneat</span>
 
           <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
-            <Link href="#" className="transition-colors hover:text-foreground">
+            <Link
+              href="/docs"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="transition-colors hover:text-foreground"
+            >
               Docs
             </Link>
           </nav>
@@ -89,7 +94,9 @@ export default function Home() {
             </Button>
           )}
           <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
-            <Link href="#">View the docs</Link>
+            <Link href="/docs" target="_blank" rel="noopener noreferrer">
+              View the docs
+            </Link>
           </Button>
         </div>
 

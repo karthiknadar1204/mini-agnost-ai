@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { jwt } from 'hono/jwt';
 import { listUsers, listSessions, getSession, getSessionMessages } from '../controllers/sessions.controller';
+import { requireProjectAccess } from '../middleware/project-access';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -10,7 +11,7 @@ const auth = jwt({ secret: JWT_SECRET, alg: 'HS256' });
 
 export const sessionRoutes = new Hono();
 
-sessionRoutes.get('/v1/users', auth, listUsers);
-sessionRoutes.get('/v1/sessions', auth, listSessions);
-sessionRoutes.get('/v1/sessions/:sessionId', auth, getSession);
-sessionRoutes.get('/v1/sessions/:sessionId/messages', auth, getSessionMessages);
+sessionRoutes.get('/v1/users', auth, requireProjectAccess, listUsers);
+sessionRoutes.get('/v1/sessions', auth, requireProjectAccess, listSessions);
+sessionRoutes.get('/v1/sessions/:sessionId', auth, requireProjectAccess, getSession);
+sessionRoutes.get('/v1/sessions/:sessionId/messages', auth, requireProjectAccess, getSessionMessages);

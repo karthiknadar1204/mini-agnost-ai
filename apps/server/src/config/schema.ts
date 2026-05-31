@@ -27,6 +27,7 @@ export const users = pgTable('users', {
 export const projects = pgTable('projects', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: text('name').notNull(),
+  ownerId: uuid('owner_id').references(() => users.id, { onDelete: 'cascade' }), // the user who created it
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 

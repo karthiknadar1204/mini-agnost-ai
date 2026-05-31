@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { jwt } from 'hono/jwt';
 import { listTraces, getTrace } from '../controllers/traces.controller';
+import { requireProjectAccess } from '../middleware/project-access';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -11,5 +12,5 @@ export const traceRoutes = new Hono();
 
 traceRoutes.use('/v1/traces', jwt({ secret: JWT_SECRET, alg: 'HS256' }));
 traceRoutes.use('/v1/traces/*', jwt({ secret: JWT_SECRET, alg: 'HS256' }));
-traceRoutes.get('/v1/traces', listTraces);
-traceRoutes.get('/v1/traces/:traceId', getTrace);
+traceRoutes.get('/v1/traces', requireProjectAccess, listTraces);
+traceRoutes.get('/v1/traces/:traceId', requireProjectAccess, getTrace);

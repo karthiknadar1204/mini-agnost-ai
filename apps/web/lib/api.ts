@@ -126,3 +126,143 @@ export const apiKeyApi = {
   revoke: (projectId: string, keyId: string) =>
     api<{ ok: boolean }>(`/v1/projects/${projectId}/api-keys/${keyId}`, { method: 'DELETE' }),
 };
+
+// ── Pulse (tool health) ──
+export interface Pulse {
+  uniqueTools: number;
+  totalInvocations: number;
+  avgSuccessRate: number;
+  needsAttention: number;
+}
+export interface ToolPerf {
+  toolName: string;
+  invocations: number;
+  p50: number;
+  p90: number;
+  p99: number;
+  successRate: number;
+}
+export const pulseApi = {
+  summary: () => api<Pulse>('/v1/stats/pulse', { projectScoped: true }),
+  tools: () => api<{ tools: ToolPerf[] }>('/v1/tools/performance', { projectScoped: true }),
+};
+
+// ── Errors ──
+export interface ErrorSpan {
+  spanId: string;
+  traceId: string;
+  name: string;
+  statusMessage: string | null;
+  startTime: string;
+}
+export const errorsApi = {
+  summary: () => api<{ totalErrors: number; errorRate: number; toolsAffected: number }>('/v1/errors/summary', { projectScoped: true }),
+  byTool: () => api<{ byTool: { toolName: string; count: number }[] }>('/v1/errors/by-tool', { projectScoped: true }),
+  list: (q?: string) => api<{ errors: ErrorSpan[] }>(`/v1/errors${q ? `?q=${encodeURIComponent(q)}` : ''}`, { projectScoped: true }),
+};
+
+// ── Traces (raw logs) ──
+export interface Trace {
+  id: string;
+  traceId: string;
+  workflowName: string | null;
+  rootSpanName: string | null;
+  sessionId: string | null;
+  userId: string | null;
+  tags: string[] | null;
+  startTime: string;
+  endTime: string;
+  durationMs: number;
+  spanCount: number;
+  totalTokens: number;
+  totalCostUsd: string;
+  status: string;
+}
+export interface SpanNode {
+  id: string;
+  traceId: string;
+  spanId: string;
+  parentSpanId: string | null;
+  name: string;
+  kind: string | null;
+  scopeName: string | null;
+  startTime: string;
+  endTime: string;
+  durationMs: number;
+  statusCode: number;
+  statusMessage: string | null;
+  model: string | null;
+  totalTokens: number | null;
+  costUsd: string | null;
+  attributes: Record<string, unknown>;
+  children: SpanNode[];
+}
+export const tracesApi = {
+  list: (params: { status?: string; q?: string } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.status) qs.set('status', params.status);
+    if (params.q) qs.set('q', params.q);
+    const s = qs.toString();
+    return api<{ traces: Trace[] }>(`/v1/traces${s ? `?${s}` : ''}`, { projectScoped: true });
+  },
+  get: (traceId: string) => api<{ trace: Trace; spans: SpanNode[] }>(`/v1/traces/${traceId}`, { projectScoped: true }),
+};
+
+// ── Sessions / Users (user stories) ──
+export interface UserRow {
+  userId: string;
+  conversations: number;
+  lastActive: string;
+}
+export interface SessionRow {
+  sessionId: string;
+  userId: string | null;
+  turnCount: number;
+  eventCount: number;
+  startTime: string;
+  successRate: number;
+}
+export interface Turn {
+  traceId: string;
+  rootSpanName: string | null;
+  durationMs: number;
+  status: string;
+  startTime: string;
+  totalTokens: number;
+  totalCostUsd: string;
+}
+export interface ChatMessage {
+  role: string;
+  content: string;
+  ts: string;
+  latencyMs?: number;
+}
+export const sessionsApi = {
+  users: () => api<{ users: UserRow[] }>('/v1/users', { projectScoped: true }),
+  list: (userId?: string) =>
+    api<{ sessions: SessionRow[] }>(`/v1/sessions${userId ? `?userId=${encodeURIComponent(userId)}` : ''}`, { projectScoped: true }),
+  get: (sessionId: string) =>
+    api<{ session: { sessionId: string; turnCount: number }; turns: Turn[] }>(`/v1/sessions/${sessionId}`, { projectScoped: true }),
+  messages: (sessionId: string) => api<{ messages: ChatMessage[] }>(`/v1/sessions/${sessionId}/messages`, { projectScoped: true }),
+};
+
+// ── Detections ──
+export interface Detection {
+  id: string;
+  traceId: string;
+  spanId: string | null;
+  rule: string;
+  severity: string;
+  title: string;
+  details: Record<string, unknown>;
+  createdAt: string;
+}
+export const detectionsApi = {
+  list: (severity?: string) =>
+    api<{ detections: Detection[] }>(`/v1/detections${severity ? `?severity=${severity}` : ''}`, { projectScoped: true }),
+  summary: () =>
+    api<{ total: number; byRule: { rule: string; count: number }[]; bySeverity: { severity: string; count: number }[] }>(
+      '/v1/detections/summary',
+      { projectScoped: true },
+    ),
+};

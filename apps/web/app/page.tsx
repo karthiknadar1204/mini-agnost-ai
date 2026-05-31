@@ -101,7 +101,7 @@ export default function Home() {
         </div>
 
         <p className="mt-6 text-sm text-muted-foreground/70">
-          No credit card required · Drop-in SDK · Self-host or cloud
+          No credit card required · Drop-in SDK 
         </p>
       </main>
 

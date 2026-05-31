@@ -177,6 +177,8 @@ export interface Trace {
   totalTokens: number;
   totalCostUsd: string;
   status: string;
+  createdAt: string;
+  detectionCount?: number;
 }
 export interface SpanNode {
   id: string;
@@ -260,6 +262,8 @@ export interface Detection {
 export const detectionsApi = {
   list: (severity?: string) =>
     api<{ detections: Detection[] }>(`/v1/detections${severity ? `?severity=${severity}` : ''}`, { projectScoped: true }),
+  byTrace: (traceId: string) =>
+    api<{ detections: Detection[] }>(`/v1/detections?traceId=${encodeURIComponent(traceId)}`, { projectScoped: true }),
   summary: () =>
     api<{ total: number; byRule: { rule: string; count: number }[]; bySeverity: { severity: string; count: number }[] }>(
       '/v1/detections/summary',

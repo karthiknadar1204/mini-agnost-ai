@@ -1,7 +1,7 @@
 import type { Context } from 'hono';
-import { and, eq, desc, ilike } from 'drizzle-orm';
+import { and, eq, desc, ilike, inArray, sql } from 'drizzle-orm';
 import { db } from '../config/db';
-import { spans, traces } from '../config/schema';
+import { spans, traces, detections } from '../config/schema';
 
 type SpanNode = typeof spans.$inferSelect & { children: SpanNode[] };
 
@@ -42,9 +42,21 @@ export async function listTraces(c: Context) {
     .from(traces)
     .where(and(...where))
     .orderBy(desc(traces.startTime))
-    .limit(50);
+    .limit(200);
 
-  return c.json({ traces: rows });
+  // annotate each trace with how many detections fired on it
+  const ids = rows.map((r) => r.traceId);
+  const counts = new Map<string, number>();
+  if (ids.length) {
+    const dc = await db
+      .select({ traceId: detections.traceId, n: sql<number>`count(*)` })
+      .from(detections)
+      .where(and(eq(detections.projectId, projectId), inArray(detections.traceId, ids)))
+      .groupBy(detections.traceId);
+    for (const d of dc) counts.set(d.traceId, Number(d.n));
+  }
+
+  return c.json({ traces: rows.map((r) => ({ ...r, detectionCount: counts.get(r.traceId) ?? 0 })) });
 }
 
 

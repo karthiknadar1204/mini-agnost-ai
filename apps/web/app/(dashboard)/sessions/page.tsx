@@ -1,184 +1,260 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { Bot, MessagesSquare, User as UserIcon, Users as UsersIcon } from 'lucide-react';
 import { ApiError, sessionsApi, type ChatMessage, type SessionRow, type Turn } from '@/lib/api';
 import { useProjectQuery } from '@/hooks/use-project-query';
-import { PageHeader, Loading, useProjectGate } from '@/components/screen';
+import { useProjectGate } from '@/components/screen';
 import { StatusBadge } from '@/components/badges';
 import { cn } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-const pct = (n: number) => `${(n * 100).toFixed(0)}%`;
-const fmt = (s: string) => new Date(s).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+const fmtTime = (s: string) => new Date(s).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+const fmtDateTime = (s: string) =>
+  new Date(s).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-function SessionDetail({ sessionId }: { sessionId: string }) {
+function ChatView({ sessionId }: { sessionId: string }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [turns, setTurns] = useState<Turn[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    Promise.all([sessionsApi.messages(sessionId), sessionsApi.get(sessionId)])
-      .then(([m, s]) => {
-        if (cancelled) return;
-        setMessages(m.messages);
-        setTurns(s.turns);
-      })
-      .catch((e) => !cancelled && toast.error(e instanceof ApiError ? e.message : 'Failed to load session'))
+    sessionsApi
+      .messages(sessionId)
+      .then((d) => !cancelled && setMessages(d.messages))
+      .catch((e) => !cancelled && toast.error(e instanceof ApiError ? e.message : 'Failed to load conversation'))
       .finally(() => !cancelled && setLoading(false));
     return () => {
       cancelled = true;
     };
   }, [sessionId]);
 
-  if (loading) return <Loading />;
+  if (loading) return <div className="flex h-40 items-center justify-center"><Spinner className="size-5 text-muted-foreground" /></div>;
+  if (!messages.length) return <p className="p-6 text-sm text-muted-foreground">No conversation reconstructed for this session.</p>;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h3 className="mb-2 text-sm font-medium">Conversation</h3>
-        {messages.length ? (
-          <div className="space-y-3">
-            {messages.map((m, i) => (
-              <div key={i} className={cn('flex', m.role === 'user' ? 'justify-start' : 'justify-end')}>
-                <div
-                  className={cn(
-                    'max-w-[85%] rounded-lg px-3 py-2 text-sm',
-                    m.role === 'user' ? 'bg-muted' : 'bg-primary text-primary-foreground',
-                  )}
-                >
-                  <div className="mb-0.5 text-[10px] uppercase tracking-wide opacity-60">{m.role}</div>
-                  <div className="whitespace-pre-wrap">{m.content}</div>
-                </div>
+    <div className="space-y-5 p-5">
+      {messages.map((m, i) => {
+        const isUser = m.role === 'user';
+        return (
+          <div key={i} className={cn('flex items-start gap-3', isUser ? 'justify-start' : 'flex-row-reverse')}>
+            <Avatar className="size-7 shrink-0">
+              <AvatarFallback className={cn('text-xs', isUser ? 'bg-muted' : 'bg-primary text-primary-foreground')}>
+                {isUser ? <UserIcon className="size-3.5" /> : <Bot className="size-3.5" />}
+              </AvatarFallback>
+            </Avatar>
+            <div className={cn('max-w-[78%]', isUser ? 'items-start' : 'items-end')}>
+              <div className={cn('mb-1 flex items-center gap-2 text-xs text-muted-foreground', !isUser && 'flex-row-reverse')}>
+                <span className="font-medium capitalize text-foreground">{m.role}</span>
+                <span>{fmtTime(m.ts)}</span>
+                {m.latencyMs != null ? (
+                  <Badge variant="secondary" className="font-normal">{Math.round(m.latencyMs)}ms</Badge>
+                ) : null}
               </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">No chat messages reconstructed for this session.</p>
-        )}
-      </div>
-
-      <div>
-        <h3 className="mb-2 text-sm font-medium">Turns</h3>
-        <div className="rounded-md border">
-          {turns.map((t) => (
-            <div key={t.traceId} className="flex items-center gap-2 border-b p-3 text-sm last:border-0">
-              <StatusBadge status={t.status} />
-              <span className="truncate font-medium">{t.rootSpanName ?? '—'}</span>
-              <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-                {Math.round(t.durationMs)} ms · {t.totalTokens} tok
-              </span>
+              <div
+                className={cn(
+                  'whitespace-pre-wrap rounded-lg px-3 py-2 text-sm',
+                  isUser ? 'bg-muted' : 'bg-primary text-primary-foreground',
+                )}
+              >
+                {m.content}
+              </div>
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
+        );
+      })}
     </div>
+  );
+}
+
+function TraceView({ sessionId }: { sessionId: string }) {
+  const [turns, setTurns] = useState<Turn[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    sessionsApi
+      .get(sessionId)
+      .then((d) => !cancelled && setTurns(d.turns))
+      .catch((e) => !cancelled && toast.error(e instanceof ApiError ? e.message : 'Failed to load turns'))
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId]);
+
+  if (loading) return <div className="flex h-40 items-center justify-center"><Spinner className="size-5 text-muted-foreground" /></div>;
+  if (!turns.length) return <p className="p-6 text-sm text-muted-foreground">No turns.</p>;
+
+  return (
+    <div className="divide-y p-2">
+      {turns.map((t) => (
+        <div key={t.traceId} className="flex items-center gap-3 px-3 py-3 text-sm">
+          <StatusBadge status={t.status} />
+          <span className="truncate font-medium">{t.rootSpanName ?? '—'}</span>
+          <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+            {Math.round(t.durationMs)} ms · {t.totalTokens} tok · ${Number(t.totalCostUsd).toFixed(4)}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MetaView({ session }: { session: SessionRow }) {
+  const rows: [string, string][] = [
+    ['Session ID', session.sessionId],
+    ['User', session.userId ?? '—'],
+    ['Turns', String(session.turnCount)],
+    ['Events', String(session.eventCount)],
+    ['Started', fmtDateTime(session.startTime)],
+    ['Success rate', `${Math.round(session.successRate * 100)}%`],
+  ];
+  return (
+    <dl className="divide-y p-2 text-sm">
+      {rows.map(([k, v]) => (
+        <div key={k} className="flex items-start justify-between gap-4 px-3 py-2.5">
+          <dt className="text-muted-foreground">{k}</dt>
+          <dd className="max-w-[70%] break-all text-right font-medium">{v}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
 export default function SessionsPage() {
   const gate = useProjectGate();
-  const [user, setUser] = useState<string | null>(null);
-  const [session, setSession] = useState<SessionRow | null>(null);
+  const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState<SessionRow | null>(null);
 
-  const { data: users, loading: lu } = useProjectQuery(() => sessionsApi.users());
-  const { data: sessions, loading: ls } = useProjectQuery(() => sessionsApi.list(user ?? undefined), [user]);
+  const { data: usersData } = useProjectQuery(() => sessionsApi.users());
+  const { data: sessionsData, loading } = useProjectQuery(() => sessionsApi.list());
+
+  const sessions = useMemo(() => sessionsData?.sessions ?? [], [sessionsData]);
+  const users = useMemo(() => usersData?.users ?? [], [usersData]);
+
+  // group sessions by user
+  const groups = useMemo(() => {
+    const byUser = new Map<string, SessionRow[]>();
+    for (const s of sessions) {
+      const u = s.userId ?? 'unknown';
+      const arr = byUser.get(u) ?? [];
+      arr.push(s);
+      byUser.set(u, arr);
+    }
+    const q = search.trim().toLowerCase();
+    return [...byUser.entries()]
+      .filter(([u]) => !q || u.toLowerCase().includes(q))
+      .map(([userId, ss]) => ({
+        userId,
+        sessions: [...ss].sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()),
+        events: ss.reduce((n, s) => n + s.eventCount, 0),
+      }));
+  }, [sessions, search]);
+
+  // auto-select first session once loaded
+  useEffect(() => {
+    if (!selected && sessions.length) setSelected(sessions[0]!);
+  }, [sessions, selected]);
+
+  if (gate) return <div className="p-6 sm:p-8">{gate}</div>;
 
   return (
-    <div className="p-6 sm:p-8">
-      <PageHeader title="User Stories" description="Users, their sessions, and reconstructed conversations." />
-      {gate ? (
-        gate
-      ) : (
-        <div className="grid gap-6 lg:grid-cols-3">
-          <Card className="lg:col-span-1">
-            <CardHeader>
-              <CardTitle className="text-base">Users</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              {lu ? (
-                <Loading />
-              ) : users?.users.length ? (
-                <ul>
-                  <li>
-                    <button
-                      onClick={() => setUser(null)}
-                      className={cn('w-full border-b px-4 py-2 text-left text-sm hover:bg-accent', !user && 'bg-accent')}
-                    >
-                      All users
-                    </button>
-                  </li>
-                  {users.users.map((u) => (
-                    <li key={u.userId}>
-                      <button
-                        onClick={() => setUser(u.userId)}
-                        className={cn(
-                          'flex w-full items-center justify-between border-b px-4 py-2 text-left text-sm hover:bg-accent last:border-0',
-                          user === u.userId && 'bg-accent',
-                        )}
-                      >
-                        <span className="truncate font-medium">{u.userId}</span>
-                        <span className="text-xs text-muted-foreground">{u.conversations}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="p-6 text-sm text-muted-foreground">No users yet.</p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="text-base">Sessions{user ? ` · ${user}` : ''}</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              {ls ? (
-                <Loading />
-              ) : sessions?.sessions.length ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Session</TableHead>
-                      <TableHead className="text-right">Turns</TableHead>
-                      <TableHead className="text-right">Success</TableHead>
-                      <TableHead className="text-right">Started</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sessions.sessions.map((s) => (
-                      <TableRow key={s.sessionId} className="cursor-pointer" onClick={() => setSession(s)}>
-                        <TableCell className="font-mono text-xs">{s.sessionId.slice(0, 8)}…</TableCell>
-                        <TableCell className="text-right">{s.turnCount}</TableCell>
-                        <TableCell className="text-right">{pct(s.successRate)}</TableCell>
-                        <TableCell className="text-right text-muted-foreground">{fmt(s.startTime)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <p className="p-6 text-sm text-muted-foreground">No sessions.</p>
-              )}
-            </CardContent>
-          </Card>
+    <div className="flex h-full overflow-hidden">
+      {/* navigator */}
+      <div className="flex w-80 shrink-0 flex-col border-r">
+        <div className="border-b p-3">
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Filter by user…" />
         </div>
-      )}
+        <div className="grid grid-cols-2 gap-2 border-b p-3">
+          <div className="rounded-lg border p-3">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><UsersIcon className="size-3.5" /> Users</div>
+            <div className="mt-1 text-2xl font-semibold">{users.length}</div>
+          </div>
+          <div className="rounded-lg border p-3">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><MessagesSquare className="size-3.5" /> Sessions</div>
+            <div className="mt-1 text-2xl font-semibold">{sessions.length}</div>
+          </div>
+        </div>
 
-      <Sheet open={!!session} onOpenChange={(o) => !o && setSession(null)}>
-        <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
-          <SheetHeader>
-            <SheetTitle>Session</SheetTitle>
-            <SheetDescription className="font-mono text-xs">{session?.sessionId}</SheetDescription>
-          </SheetHeader>
-          <div className="px-4 pb-6">{session ? <SessionDetail sessionId={session.sessionId} /> : null}</div>
-        </SheetContent>
-      </Sheet>
+        <div className="flex-1 overflow-y-auto p-2">
+          {loading ? (
+            <div className="flex h-40 items-center justify-center"><Spinner className="size-5 text-muted-foreground" /></div>
+          ) : groups.length === 0 ? (
+            <p className="p-4 text-sm text-muted-foreground">No users yet.</p>
+          ) : (
+            groups.map((g) => (
+              <div key={g.userId} className="mb-3">
+                <div className="px-2 py-1.5">
+                  <div className="truncate text-sm font-medium">{g.userId}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {g.sessions.length} {g.sessions.length === 1 ? 'session' : 'sessions'} · {g.events} events
+                  </div>
+                </div>
+                {g.sessions.map((s) => (
+                  <button
+                    key={s.sessionId}
+                    onClick={() => setSelected(s)}
+                    className={cn(
+                      'mt-1 flex w-full items-center justify-between gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors',
+                      selected?.sessionId === s.sessionId ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/60',
+                    )}
+                  >
+                    <span className="truncate">{fmtDateTime(s.startTime)}</span>
+                    <Badge variant="secondary" className="shrink-0 font-normal">{s.eventCount}</Badge>
+                  </button>
+                ))}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* conversation */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        {selected ? (
+          <Tabs defaultValue="chat" className="flex min-h-0 flex-1 flex-col" key={selected.sessionId}>
+            <div className="flex items-center justify-between gap-4 border-b px-5 py-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="truncate font-semibold">{selected.userId ?? 'unknown'}</span>
+                  <Badge
+                    variant="outline"
+                    className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                  >
+                    {Math.round(selected.successRate * 100)}% success
+                  </Badge>
+                </div>
+                <div className="truncate text-xs text-muted-foreground">
+                  {selected.eventCount} events · <span className="font-mono">{selected.sessionId}</span>
+                </div>
+              </div>
+              <TabsList>
+                <TabsTrigger value="chat">Chat View</TabsTrigger>
+                <TabsTrigger value="trace">Trace View</TabsTrigger>
+                <TabsTrigger value="meta">Metadata</TabsTrigger>
+              </TabsList>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <TabsContent value="chat" className="m-0"><ChatView sessionId={selected.sessionId} /></TabsContent>
+              <TabsContent value="trace" className="m-0"><TraceView sessionId={selected.sessionId} /></TabsContent>
+              <TabsContent value="meta" className="m-0"><MetaView session={selected} /></TabsContent>
+            </div>
+          </Tabs>
+        ) : (
+          <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+            Select a session to view the conversation.
+          </div>
+        )}
+      </div>
     </div>
   );
 }

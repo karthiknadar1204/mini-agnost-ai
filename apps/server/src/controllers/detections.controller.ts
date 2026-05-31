@@ -7,14 +7,16 @@ function projectId(c: Context): string | null {
   return c.req.header('x-project-id') ?? null;
 }
 
-// GET /v1/detections?severity=high — recent detections for a project.
+// GET /v1/detections?severity=high&traceId=… — recent detections for a project.
 export async function listDetections(c: Context) {
   const pid = projectId(c);
   if (!pid) return c.json({ error: 'x-project-id header is required' }, 400);
 
   const severity = c.req.query('severity');
+  const traceId = c.req.query('traceId');
   const where = [eq(detections.projectId, pid)];
   if (severity) where.push(eq(detections.severity, severity));
+  if (traceId) where.push(eq(detections.traceId, traceId));
 
   const rows = await db
     .select()

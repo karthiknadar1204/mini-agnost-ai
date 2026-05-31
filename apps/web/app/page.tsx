@@ -32,6 +32,14 @@ export default function Home() {
             >
               Docs
             </Link>
+            <Link
+              href="https://www.npmjs.com/package/logsneat"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="transition-colors hover:text-foreground"
+            >
+              npm
+            </Link>
           </nav>
 
           <div className="flex items-center gap-2">

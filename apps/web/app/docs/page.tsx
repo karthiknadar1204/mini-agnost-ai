@@ -206,6 +206,16 @@ export default function DocsPage() {
             <H2 id="installation">Installation</H2>
             <P>Install the SDK alongside any provider you want to instrument (e.g. OpenAI).</P>
             <CodeBlock code={INSTALL} lang="bash" />
+            <P>
+              <a
+                href="https://www.npmjs.com/package/logsneat"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-foreground underline underline-offset-4"
+              >
+                logsneat on npm ↗
+              </a>
+            </P>
           </section>
 
           <section className="space-y-4">

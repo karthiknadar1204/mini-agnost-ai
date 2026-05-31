@@ -15,15 +15,19 @@ const app = new Hono();
 app.use(logger());
 
 // Allowed dashboard origins — comma-separated in CORS_ORIGINS, defaults to local dev.
+// Normalized (trimmed + trailing slash stripped) so a stray "/" can't break matching.
+const normalize = (o: string) => o.trim().replace(/\/+$/, '');
 const corsOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:3000')
   .split(',')
-  .map((o) => o.trim())
+  .map(normalize)
   .filter(Boolean);
+
+console.log('[cors] allowed origins:', corsOrigins);
 
 app.use(
   '*',
   cors({
-    origin: corsOrigins,
+    origin: (origin) => (origin && corsOrigins.includes(normalize(origin)) ? origin : null),
     allowMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization', 'x-project-id'],
   }),

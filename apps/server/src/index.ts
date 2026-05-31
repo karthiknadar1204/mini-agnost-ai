@@ -14,10 +14,16 @@ import { logger } from 'hono/logger'
 const app = new Hono();
 app.use(logger());
 
+// Allowed dashboard origins — comma-separated in CORS_ORIGINS, defaults to local dev.
+const corsOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:3000')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
 app.use(
   '*',
   cors({
-    origin: ['http://localhost:3000'],
+    origin: corsOrigins,
     allowMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization', 'x-project-id'],
   }),
@@ -36,6 +42,6 @@ app.route('/', sessionRoutes);
 app.route('/', detectionRoutes);
 
 export default {
-  port: 3004,
+  port: Number(process.env.PORT) || 3004,
   fetch: app.fetch,
 };
